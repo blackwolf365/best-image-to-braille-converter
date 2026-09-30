@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dizzy Dither — Braille Art Studio</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent-hover: #79c0ff;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --output-bg: #000000;
+      --output-fg: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+    }
+
+    header h1 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      background: rgba(88, 166, 255, 0.15);
+      color: var(--accent);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(88, 166, 255, 0.3);
+    }
+
+    .layout {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 55px);
+      overflow: hidden;
+    }
+
+    /* Sidebar / Controls */
+    .sidebar {
+      width: 380px;
+      min-width: 320px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 20px 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(88, 166, 255, 0.06);
+    }
+
+    .dropzone p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .section-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .control-row span.val {
+      font-family: monospace;
+      color: var(--accent);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    select {
+      width: 100%;
+      background: #0d1117;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      border-radius: 6px;
+      outline: none;
+      font-size: 0.85rem;
+    }
+
+    .switch-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-size: 0.85rem;
+      user-select: none;
+      padding: 4px 0;
+    }
+
+    .switch-label input {
+      accent-color: var(--accent);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    /* Collapsible Details */
+    details {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    details summary {
+      padding: 10px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
+      outline: none;
+      user-select: none;
+    }
+
+    details[open] summary {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .details-body {
+      padding: 12px;
+    }
+
+    /* Curve Editor Canvas */
+    .curve-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    #curveCanvas {
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: crosshair;
+    }
+
+    /* Preview area */
+    .preview-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #050505;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .preview-toolbar {
+      padding: 8px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    .btn {
+      background: #21262d;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: #30363d;
+      border-color: #8b949e;
+    }
+
+    .btn-primary {
+      background: #1f6feb;
+      border-color: rgba(240, 246, 252, 0.1);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #388bfd;
+    }
+
+    .art-viewport {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: #000;
+    }
+
+    #asciiOutput {
+      white-space: pre;
+      font-family: "DejaVu Sans Mono", "Courier New", Consolas, monospace;
+      line-height: 1.0;
+      letter-spacing: 0;
+      user-select: all;
+      font-size: 9px;
+      padding: 20px;
+      border-radius: 4px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .stats {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #238636;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>
+      ⠙⠊⠵⠵⠽ Dizzy Braille Studio
+      <span class="badge">Dizzy Dithering v2.0</span>
+    </h1>
+    <div class="stats" id="perfStats">Обробка: 0мс | 0×0 символів</div>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- File Dropzone -->
+      <div class="dropzone" id="dropzone" onclick="fileInput.click()">
+        <strong>Оберіть або перетягніть фото</strong>
+        <p>Підтримує JPG, PNG, WEBP (або Ctrl+V)</p>
+        <input type="file" id="fileInput" accept="image/*" style="display:none">
+      </div>
+
+      <!-- Core Controls -->
+      <div>
+        <div class="section-title">Основні параметри</div>
+        
+        <div class="control-group">
+          <div class="control-row">
+            <label for="charWidth">Ширина (символів):</label>
+            <span class="val" id="charWidthVal">70</span>
+          </div>
+          <input type="range" id="charWidth" min="15" max="250" value="70">
+        </div>
+
+        <div class="control-group">
+          <div class="control-row">
+            <label for="threshold">Поріг (Threshold):</label>
+            <span class="val" id="thresholdVal">128</span>
+          </div>
+          <input type="range" id="threshold" min="1" max="254" value="128">
+        </div>
+
+        <label class="switch-label">
+          <span>Інверсія зображення (крапки на темному)</span>
+          <input type="checkbox" id="invertImage">
+        </label>
+
+        <label class="switch-label">
+          <span>Режим MonoSpace (заповнення фону ⠄)</span>
+          <input type="checkbox" id="monoSpace">
+        </label>
+      </div>
+
+      <!-- Advanced Details -->
+      <details open>
+        <summary>Розширені параметри & Контури</summary>
+        <div class="details-body">
+          <div class="control-group">
+            <label class="switch-label">
+              <span>Виділення контурів (Emphasize)</span>
+              <input type="checkbox" id="contourEnable">
+            </label>
+            <div class="control-row">
+              <label for="contourStrength">Сила контурів:</label>
+              <span class="val" id="contourVal">50%</span>
+            </div>
+            <input type="range" id="contourStrength" min="0" max="150" value="50">
+          </div>
+
+          <div class="control-group">
+            <label for="grayMode">Режим Grey Scale:</label>
+            <select id="grayMode">
+              <option value="luminance" selected>Luminance (сприйняття людського ока)</option>
+              <option value="average">Average ((R + G + B) / 3)</option>
+              <option value="value">Value (Max RGB)</option>
+              <option value="lightness">Lightness ((Max + Min) / 2)</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <div class="control-row">
+              <label for="aspectRatio">Корекція пропорцій шрифту:</label>
+              <span class="val" id="aspectVal">1.00</span>
+            </div>
+            <input type="range" id="aspectRatio" min="0.5" max="1.5" step="0.02" value="1.0">
+          </div>
+
+          <button class="btn" id="reseedBtn" style="width: 100%; justify-content: center; margin-top: 5px;">
+            🎲 Перегенерувати шум (Reseed Dizzy)
+          </button>
+        </div>
+      </details>
+
+      <!-- Photoshop-like Curves -->
+      <details>
+        <summary>Тонові криві (Аналог Photoshop Curves)</summary>
+        <div class="details-body">
+          <div class="curve-container">
+            <canvas id="curveCanvas" width="160" height="160"></canvas>
+            <span style="font-size:0.75rem; color:var(--text-muted)">Крива тональності (0 - 255)</span>
+          </div>
+
+          <div class="control-group">
+            <div class="control-row"><label>Тіні (Shadows):</label><span class="val" id="curveShadowsVal">64</span></div>
+            <input type="range" id="curveShadows" min="0" max="255" value="64">
+          </div>
+          <div class="control-group">
+            <div class="control-row"><label>Середні тони (Midtones):</label><span class="val" id="curveMidVal">128</span></div>
+            <input type="range" id="curveMid" min="0" max="255" value="128">
+          </div>
+          <div class="control-group">
+            <div class="control-row"><label>Світлі тони (Highlights):</label><span class="val" id="curveHighVal">192</span></div>
+            <input type="range" id="curveHigh" min="0" max="255" value="192">
+          </div>
+          
+          <button class="btn" id="resetCurvesBtn" style="width:100%; justify-content: center;">Скинути криві</button>
+        </div>
+      </details>
+
+      <!-- Viewer Settings -->
+      <div>
+        <div class="section-title">Перегляд та Оформлення</div>
+        <label class="switch-label">
+          <span>Інвертувати кольори перегляду (Фон/Текст)</span>
+          <input type="checkbox" id="invertColors">
+        </label>
+        
+        <div class="control-group" style="margin-top: 8px;">
+          <div class="control-row">
+            <label for="fontSize">Розмір шрифту перегляду:</label>
+            <span class="val" id="fontSizeVal">9px</span>
+          </div>
+          <input type="range" id="fontSize" min="4" max="20" value="9">
+        </div>
+      </div>
+    </div>
+
+    <!-- Output / Canvas area -->
+    <div class="preview-container">
+      <div class="preview-toolbar">
+        <div>
+          <button class="btn btn-primary" id="copyBtn">📋 Скопіювати арт</button>
+          <button class="btn" id="downloadBtn">💾 Завантажити .txt</button>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">
+          Масштаб адаптовано для моноширинних шрифтів
+        </div>
+      </div>
+
+      <div class="art-viewport" id="viewport">
+        <div id="asciiOutput">⠀</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Скопійовано в буфер обміну!</div>
+
+  <script>
+    // --- BRAILLE CONSTANTS ---
+    // Braille 2x4 dot standard matrix:
+    // Dot 1: (0,0) -> 0x01
+    // Dot 2: (0,1) -> 0x02
+    // Dot 3: (0,2) -> 0x04
+    // Dot 4: (1,0) -> 0x08
+    // Dot 5: (1,1) -> 0x10
+    // Dot 6: (1,2) -> 0x20
+    // Dot 7: (0,3) -> 0x40
+    // Dot 8: (1,3) -> 0x80
+    const DOT_MAP = [
+      [0x01, 0x08],
+      [0x02, 0x10],
+      [0x04, 0x20],
+      [0x40, 0x80]
+    ];
+    const BRAILLE_EMPTY = 0x2800;
+    const MONOSPACE_CHAR = '⠄'; // Braille pattern dot-3 as requested
+
+    // --- STATE ---
+    let currentImage = null;
+    let lut = new Uint8Array(256);
+
+    // --- DOM ELEMENTS ---
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const charWidth = document.getElementById('charWidth');
+    const charWidthVal = document.getElementById('charWidthVal');
+    const threshold = document.getElementById('threshold');
+    const thresholdVal = document.getElementById('thresholdVal');
+    const invertImage = document.getElementById('invertImage');
+    const monoSpace = document.getElementById('monoSpace');
+    const contourEnable = document.getElementById('contourEnable');
+    const contourStrength = document.getElementById('contourStrength');
+    const contourVal = document.getElementById('contourVal');
+    const grayMode = document.getElementById('grayMode');
+    const aspectRatio = document.getElementById('aspectRatio');
+    const aspectVal = document.getElementById('aspectVal');
+    const reseedBtn = document.getElementById('reseedBtn');
+    
+    const curveShadows = document.getElementById('curveShadows');
+    const curveMid = document.getElementById('curveMid');
+    const curveHigh = document.getElementById('curveHigh');
+    const curveShadowsVal = document.getElementById('curveShadowsVal');
+    const curveMidVal = document.getElementById('curveMidVal');
+    const curveHighVal = document.getElementById('curveHighVal');
+    const resetCurvesBtn = document.getElementById('resetCurvesBtn');
+    const curveCanvas = document.getElementById('curveCanvas');
+    const curveCtx = curveCanvas.getContext('2d');
+
+    const invertColors = document.getElementById('invertColors');
+    const fontSize = document.getElementById('fontSize');
+    const fontSizeVal = document.getElementById('fontSizeVal');
+    const asciiOutput = document.getElementById('asciiOutput');
+    const copyBtn = document.getElementById('copyBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const perfStats = document.getElementById('perfStats');
+    const toast = document.getElementById('toast');
+
+    // --- TONE CURVE CALCULATION & RENDERING ---
+    function updateCurveLUT() {
+      const p0 = 0;
+      const p1 = parseInt(curveShadows.value, 10);
+      const p2 = parseInt(curveMid.value, 10);
+      const p3 = parseInt(curveHigh.value, 10);
+      const p4 = 255;
+
+      const pts = [
+        {x: 0, y: p0},
+        {x: 64, y: p1},
+        {x: 128, y: p2},
+        {x: 192, y: p3},
+        {x: 255, y: p4}
+      ];
+
+      // Piecewise Cubic Hermite Spline / Monotonic interpolation
+      for (let i = 0; i < 256; i++) {
+        let seg = 0;
+        if (i >= 192) seg = 3;
+        else if (i >= 128) seg = 2;
+        else if (i >= 64) seg = 1;
+
+        const pA = pts[seg];
+        const pB = pts[seg + 1];
+        const t = (i - pA.x) / (pB.x - pA.x);
+        
+        // Smoothstep interpolation between control points
+        const ft = t * t * (3 - 2 * t);
+        const val = Math.round(pA.y * (1 - ft) + pB.y * ft);
+        lut[i] = Math.max(0, Math.min(255, val));
+      }
+
+      renderCurveGraph(pts);
+    }
+
+    function renderCurveGraph(pts) {
+      const w = curveCanvas.width;
+      const h = curveCanvas.height;
+      curveCtx.clearRect(0, 0, w, h);
+
+      // Grid
+      curveCtx.strokeStyle = '#222';
+      curveCtx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) {
+        curveCtx.beginPath();
+        curveCtx.moveTo((w / 4) * i, 0);
+        curveCtx.lineTo((w / 4) * i, h);
+        curveCtx.stroke();
+
+        curveCtx.beginPath();
+        curveCtx.moveTo(0, (h / 4) * i);
+        curveCtx.lineTo(w, (h / 4) * i);
+        curveCtx.stroke();
+      }
+
+      // Curve path
+      curveCtx.strokeStyle = '#58a6ff';
+      curveCtx.lineWidth = 2;
+      curveCtx.beginPath();
+      for (let x = 0; x < 256; x++) {
+        const y = 255 - lut[x];
+        const cx = (x / 255) * w;
+        const cy = (y / 255) * h;
+        if (x === 0) curveCtx.moveTo(cx, cy);
+        else curveCtx.lineTo(cx, cy);
+      }
+      curveCtx.stroke();
+
+      // Draw points
+      curveCtx.fillStyle = '#fff';
+      pts.forEach(p => {
+        const cx = (p.x / 255) * w;
+        const cy = ((255 - p.y) / 255) * h;
+        curveCtx.beginPath();
+        curveCtx.arc(cx, cy, 3.5, 0, Math.PI * 2);
+        curveCtx.fill();
+      });
+    }
+
+    // --- GRAYSCALE CONVERSION ---
+    function getGray(r, g, b, mode) {
+      switch (mode) {
+        case 'luminance':
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        case 'average':
+          return (r + g + b) / 3;
+        case 'value':
+          return Math.max(r, g, b);
+        case 'lightness':
+          return (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
+        default:
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      }
+    }
+
+    // --- SOBEL CONTOUR OPERATOR ---
+    function applySobelContour(buf, w, h, strength) {
+      const output = new Float32Array(w * h);
+      const factor = strength / 100.0;
+
+      for (let y = 1; y < h - 1; y++) {
+        const rowPrev = (y - 1) * w;
+        const rowCurr = y * w;
+        const rowNext = (y + 1) * w;
+
+        for (let x = 1; x < w - 1; x++) {
+          const p00 = buf[rowPrev + x - 1], p01 = buf[rowPrev + x], p02 = buf[rowPrev + x + 1];
+          const p10 = buf[rowCurr + x - 1],                         p12 = buf[rowCurr + x + 1];
+          const p20 = rowNext + x - 1,   p21 = buf[rowNext + x], p22 = buf[rowNext + x + 1];
+
+          // Sobel Gx & Gy kernels
+          const gx = (-p00 + p02) + (-2 * p10 + 2 * p12) + (-buf[p20] + p22);
+          const gy = (-p00 - 2 * p01 - p02) + (buf[p20] + 2 * p21 + p22);
+          const mag = Math.sqrt(gx * gx + gy * gy);
+
+          // Darken the edges proportionally to make them stand out
+          const orig = buf[rowCurr + x];
+          output[rowCurr + x] = Math.max(0, Math.min(255, orig - mag * factor));
+        }
+      }
+      return output;
+    }
+
+    // --- DIZZY DITHER ALGORITHM (JS High-Performance Port) ---
+    function runDizzyDither(pix, w, h, thresh) {
+      const total = w * h;
+      const done = new Uint8Array(total);
+      const binary = new Uint8Array(total);
+
+      // Create shuffled index order
+      const order = new Int32Array(total);
+      for (let i = 0; i < total; i++) order[i] = i;
+
+      // Fisher-Yates Shuffle
+      for (let i = total - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0;
+        const tmp = order[i];
+        order[i] = order[j];
+        order[j] = tmp;
+      }
+
+      // Dither pass
+      for (let idx = 0; idx < total; idx++) {
+        const p = order[idx];
+        const x = p % w;
+        const y = (p / w) | 0;
+
+        const oldVal = pix[p];
+        const newVal = oldVal < thresh ? 0 : 255;
+        binary[p] = newVal === 255 ? 1 : 0;
+        const err = oldVal - newVal;
+
+        // Check 4-orthogonal neighbors (Right, Down, Left, Up)
+        const hasR = (x < w - 1) && !done[p + 1];
+        const hasD = (y < h - 1) && !done[p + w];
+        const hasL = (x > 0) && !done[p - 1];
+        const hasU = (y > 0) && !done[p - w];
+
+        let n = (hasR ? 1 : 0) + (hasD ? 1 : 0) + (hasL ? 1 : 0) + (hasU ? 1 : 0);
+
+        if (n > 0) {
+          const derr = err / n;
+          if (hasR) { const np = p + 1; pix[np] = Math.max(0, Math.min(255, pix[np] + derr)); }
+          if (hasD) { const np = p + w; pix[np] = Math.max(0, Math.min(255, pix[np] + derr)); }
+          if (hasL) { const np = p - 1; pix[np] = Math.max(0, Math.min(255, pix[np] + derr)); }
+          if (hasU) { const np = p - w; pix[np] = Math.max(0, Math.min(255, pix[np] + derr)); }
+        }
+
+        done[p] = 1;
+      }
+
+      return binary;
+    }
+
+    // --- PIPELINE CONTROLLER ---
+    function processImage() {
+      if (!currentImage) return;
+
+      const t0 = performance.now();
+
+      // 1. SCALING FIRST (Fundamental for Performance)
+      // Braille character = 2 horizontal dots x 4 vertical dots
+      const cWidth = parseInt(charWidth.value, 10);
+      const aspectCorrection = parseFloat(aspectRatio.value);
+      
+      // Compute pixel dimensions required
+      const targetWidth = cWidth * 2;
+      const imgAspect = currentImage.width / currentImage.height;
+      
+      // In monospace fonts, a char is roughly ~2x taller than wide.
+      // 2 horizontal dots / 4 vertical dots * font correction
+      const cHeight = Math.max(1, Math.round((cWidth / imgAspect) * 0.5 * aspectCorrection));
+      const targetHeight = cHeight * 4;
+
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = targetWidth;
+      offCanvas.height = targetHeight;
+      const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+
+      // High-quality downsampling
+      offCtx.imageSmoothingEnabled = true;
+      offCtx.imageSmoothingQuality = 'high';
+      offCtx.drawImage(currentImage, 0, 0, targetWidth, targetHeight);
+
+      const imgData = offCtx.getImageData(0, 0, targetWidth, targetHeight);
+      const data = imgData.data;
+
+      // 2. GRAYSCALE & TONE CURVES
+      const mode = grayMode.value;
+      let grayBuffer = new Float32Array(targetWidth * targetHeight);
+
+      for (let i = 0; i < grayBuffer.length; i++) {
+        const idx = i * 4;
+        const g = getGray(data[idx], data[idx + 1], data[idx + 2], mode);
+        // Apply Photoshop Tone Curves Look-Up Table
+        grayBuffer[i] = lut[Math.round(g)];
+      }
+
+      // 3. EMPHASIZE CONTOURS (SOBEL)
+      if (contourEnable.checked) {
+        grayBuffer = applySobelContour(grayBuffer, targetWidth, targetHeight, parseFloat(contourStrength.value));
+      }
+
+      // 4. DIZZY DITHERING
+      const thresh = parseInt(threshold.value, 10);
+      const dithered = runDizzyDither(grayBuffer, targetWidth, targetHeight, thresh);
+
+      // 5. PACKING INTO BRAILLE CHARACTERS
+      const isInverted = invertImage.checked;
+      const useMonoSpace = monoSpace.checked;
+      let outputText = "";
+
+      for (let cy = 0; cy < cHeight; cy++) {
+        let rowStr = "";
+        const pyBase = cy * 4;
+
+        for (let cx = 0; cx < cWidth; cx++) {
+          const pxBase = cx * 2;
+          let mask = 0;
+
+          // Assemble the 2x4 dot block
+          for (let dy = 0; dy < 4; dy++) {
+            const y = pyBase + dy;
+            if (y >= targetHeight) continue;
+            const yOff = y * targetWidth;
+
+            for (let dx = 0; dx < 2; dx++) {
+              const x = pxBase + dx;
+              if (x >= targetWidth) continue;
+
+              const val = dithered[yOff + x];
+              // Standard: dark pixels (0) get dots; inverted: light pixels (1) get dots
+              const isDotActive = isInverted ? (val === 1) : (val === 0);
+
+              if (isDotActive) {
+                mask |= DOT_MAP[dy][dx];
+              }
+            }
+          }
+
+          if (mask === 0) {
+            rowStr += useMonoSpace ? MONOSPACE_CHAR : ' ';
+          } else {
+            rowStr += String.fromCharCode(BRAILLE_EMPTY + mask);
+          }
+        }
+        outputText += rowStr + "\n";
+      }
+
+      // 6. RENDER OUTPUT
+      asciiOutput.textContent = outputText;
+
+      const t1 = performance.now();
+      perfStats.textContent = `Обробка: ${(t1 - t0).toFixed(1)}мс | ${cWidth}×${cHeight} символів (${targetWidth}×${targetHeight} точок)`;
+    }
+
+    // --- DEFAULT PLACEHOLDER GENERATOR ---
+    function loadDefaultPlaceholder() {
+      const c = document.createElement('canvas');
+      c.width = 400;
+      c.height = 400;
+      const ctx = c.getContext('2d');
+
+      // Draw stylized eye / portrait geometry for an immediate impressive view
+      const grad = ctx.createLinearGradient(0, 0, 400, 400);
+      grad.addColorStop(0, '#111');
+      grad.addColorStop(1, '#eee');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 400, 400);
+
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(200, 200, 140, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.arc(200, 200, 80, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(170, 170, 30, 0, Math.PI * 2);
+      ctx.fill();
+
+      const img = new Image();
+      img.onload = () => {
+        currentImage = img;
+        updateCurveLUT();
+        processImage();
+      };
+      img.src = c.toDataURL();
+    }
+
+    // --- EVENT LISTENERS & REACTIVITY ---
+    function handleFile(file) {
+      if (!file || !file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          currentImage = img;
+          processImage();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+    // Drag and Drop
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+
+    // Paste from clipboard (Ctrl+V)
+    window.addEventListener('paste', (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          handleFile(item.getAsFile());
+          break;
+        }
+      }
+    });
+
+    // Controls Reactivity
+    charWidth.addEventListener('input', (e) => {
+      charWidthVal.textContent = e.target.value;
+      processImage();
+    });
+
+    threshold.addEventListener('input', (e) => {
+      thresholdVal.textContent = e.target.value;
+      processImage();
+    });
+
+    contourStrength.addEventListener('input', (e) => {
+      contourVal.textContent = e.target.value + '%';
+      if (contourEnable.checked) processImage();
+    });
+
+    aspectRatio.addEventListener('input', (e) => {
+      aspectVal.textContent = parseFloat(e.target.value).toFixed(2);
+      processImage();
+    });
+
+    fontSize.addEventListener('input', (e) => {
+      fontSizeVal.textContent = e.target.value + 'px';
+      asciiOutput.style.fontSize = e.target.value + 'px';
+    });
+
+    invertImage.addEventListener('change', processImage);
+    monoSpace.addEventListener('change', processImage);
+    contourEnable.addEventListener('change', processImage);
+    grayMode.addEventListener('change', processImage);
+    reseedBtn.addEventListener('click', processImage);
+
+    // Curves sliders
+    [curveShadows, curveMid, curveHigh].forEach(slider => {
+      slider.addEventListener('input', () => {
+        curveShadowsVal.textContent = curveShadows.value;
+        curveMidVal.textContent = curveMid.value;
+        curveHighVal.textContent = curveHigh.value;
+        updateCurveLUT();
+        processImage();
+      });
+    });
+
+    resetCurvesBtn.addEventListener('click', () => {
+      curveShadows.value = 64;
+      curveMid.value = 128;
+      curveHigh.value = 192;
+      curveShadowsVal.textContent = "64";
+      curveMidVal.textContent = "128";
+      curveHighVal.textContent = "192";
+      updateCurveLUT();
+      processImage();
+    });
+
+    // Viewer Theme Inversion
+    invertColors.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        asciiOutput.style.background = '#ffffff';
+        asciiOutput.style.color = '#000000';
+      } else {
+        asciiOutput.style.background = '#000000';
+        asciiOutput.style.color = '#ffffff';
+      }
+    });
+
+    // Copy to Clipboard
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(asciiOutput.textContent).then(() => {
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+      });
+    });
+
+    // Download as .txt
+    downloadBtn.addEventListener('click', () => {
+      const blob = new Blob([asciiOutput.textContent], { type: 'text/plain;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `dizzy_braille_${Date.now()}.txt`;
+      link.click();
+    });
+
+    // --- INITIALIZE ---
+    updateCurveLUT();
+    loadDefaultPlaceholder();
+  </script>
+</body>
+</html>
