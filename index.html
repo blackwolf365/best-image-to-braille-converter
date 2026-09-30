@@ -268,7 +268,7 @@
 
     #asciiOutput {
       white-space: pre;
-      font-family: "DejaVu Sans Mono", "Courier New", Consolas, monospace;
+      font-family: "DejaVu Sans Mono", "Segoe UI Symbol", "Apple Symbols", "Noto Sans Braille", Consolas, monospace;
       line-height: 1.0;
       letter-spacing: 0;
       user-select: all;
@@ -785,8 +785,8 @@
             }
           }
 
-          if (mask === 0) {
-            rowStr += useMonoSpace ? MONOSPACE_CHAR : ' ';
+          if (mask === 0 && useMonoSpace) {
+            rowStr += MONOSPACE_CHAR;
           } else {
             rowStr += String.fromCharCode(BRAILLE_EMPTY + mask);
           }
